@@ -108,7 +108,7 @@
         <!-- Direct Refresh Google Sheet Button (No Pop-up) -->
         <button onclick="syncGoogleSheetNow()" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md shadow-emerald-500/20 transition-all cursor-pointer" title="Segerakkan semula data Google Sheet">
           <i class="fa-solid fa-arrows-rotate mr-2 text-base text-emerald-200" id="syncBtnIcon"></i>
-          <span id="syncBtnText">Sync Google Sheet</span>
+          <span id="syncBtnText">Sync Live</span>
         </button>
       </div>
     </div>
@@ -126,7 +126,7 @@
       <div class="flex items-center gap-3">
         <span id="lastSyncedTime" class="text-slate-500 text-[11px]"></span>
         <button onclick="syncGoogleSheetNow()" class="text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer flex items-center gap-1">
-          <i class="fa-solid fa-arrows-rotate text-[11px]"></i> Segerak Semula
+          <i class="fa-solid fa-arrows-rotate text-[11px]"></i> Refresh
         </button>
       </div>
     </div>
@@ -1364,7 +1364,7 @@
     // Auto sync dari Google Sheets sebaik sahaja halaman dimuatkan
     window.onload = async function() {
       // Paparkan status awal sedang menyegerak
-      updateDataSourceBanner('Menyegerakkan data dari Google Sheets...');
+      updateDataSourceBanner('Menyegerakkan data dari Clouds...');
 
       try {
         await syncGoogleSheetNow();
