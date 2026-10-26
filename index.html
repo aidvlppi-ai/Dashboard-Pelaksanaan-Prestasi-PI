@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Track Kerja</title>
+  
+  <!-- Tailwind CSS & Google Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- SheetJS for Excel / CSV Parsing & Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <!-- Chart.js for Visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: linear-gradient(135deg, #f0f7ff 0%, #e0f0fe 50%, #eff6ff 100%);
+      color: #0f2744;
+      min-height: 100vh;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #e2e8f0;
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #93c5fd;
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #3b82f6;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 25px -5px rgba(14, 116, 144, 0.07), 0 8px 10px -6px rgba(14, 116, 144, 0.05);
+    }
+    .card-hover-effect {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-hover-effect:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px -4px rgba(30, 64, 175, 0.12);
+    }
+    .badge-selesai {
+      background-color: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .badge-tindakan {
+      background-color: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+    .badge-belum {
+      background-color: #fff1f2;
+      color: #e11d48;
+      border: 1px solid #fecdd3;
+    }
+    .badge-overdue {
+      background-color: #be123c;
+      color: #ffffff;
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .badge-neardue {
+      background-color: #fffbeb;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .75; }
+    }
+  </style>
+</head>
+<body class="antialiased pb-14 text-slate-800">
+
+  <!-- Header Section -->
+  <header class="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-blue-100 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3.5">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
+          <i class="fa-solid fa-list-check text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Dashboard Track Kerja</h1>
+            <span class="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">Pro Edition</span>
+          </div>
+          <p class="text-xs text-blue-900/60 font-medium">Pemantauan Status, Unit, & Timeframe Tugasan</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center flex-wrap gap-2.5">
+        <!-- Direct Refresh Google Sheet Button (No Pop-up) -->
+        <button onclick="syncGoogleSheetNow()" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md shadow-emerald-500/20 transition-all cursor-pointer" title="Segerakkan semula data Google Sheet">
+          <i class="fa-solid fa-arrows-rotate mr-2 text-base text-emerald-200" id="syncBtnIcon"></i>
+          <span id="syncBtnText">Sync Google Sheet</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+
+    <!-- Active Source Indicator Banner -->
+    <div id="dataSourceBanner" class="hidden glass-card rounded-2xl px-4 py-2.5 border border-emerald-200/90 flex flex-wrap items-center justify-between text-xs gap-2">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="font-bold text-emerald-900">Sumber Data:</span>
+        <span id="dataSourceLabel" class="text-emerald-700 font-semibold">Google Sheets (Disegerakkan)</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="lastSyncedTime" class="text-slate-500 text-[11px]"></span>
+        <button onclick="syncGoogleSheetNow()" class="text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer flex items-center gap-1">
+          <i class="fa-solid fa-arrows-rotate text-[11px]"></i> Segerak Semula
+        </button>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastNotification" class="hidden transition-all duration-300 transform rounded-xl p-3.5 text-sm flex items-center justify-between border"></div>
+
+    <!-- Filters Section -->
+    <section class="glass-card rounded-2xl p-4 sm:p-5 border border-blue-100/90 shadow-sm">
+      <div class="flex items-center justify-between mb-3.5 pb-2.5 border-b border-blue-50">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700">
+            <i class="fa-solid fa-sliders text-xs"></i>
+          </div>
+          <h2 class="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700">Menu Filter Pilihan</h2>
+        </div>
+        <button onclick="resetFilters()" class="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors flex items-center gap-1.5">
+          <i class="fa-solid fa-arrow-rotate-left text-blue-500"></i> Set Semula Filter
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <!-- Filter Unit -->
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+            <i class="fa-regular fa-building text-blue-600"></i> Pilihan Unit
+          </label>
+          <div class="relative">
+            <select id="filterUnit" onchange="onUnitFilterChange()" class="w-full text-xs sm:text-sm bg-blue-50/50 hover:bg-white border border-blue-200/80 rounded-xl px-3 py-2.5 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none pr-8 cursor-pointer">
+              <option value="ALL">Semua Unit</option>
+            </select>
+            <i class="fa-solid fa-chevron-down absolute right-3 top-3.5 text-xs text-blue-400 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <!-- Filter Skop Kerja -->
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+            <i class="fa-solid fa-layer-group text-blue-600"></i> Skop Kerja
+          </label>
+          <div class="relative">
+            <select id="filterSkop" onchange="applyFilters()" class="w-full text-xs sm:text-sm bg-blue-50/50 hover:bg-white border border-blue-200/80 rounded-xl px-3 py-2.5 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none pr-8 cursor-pointer">
+              <option value="ALL">Semua Skop Kerja</option>
+            </select>
+            <i class="fa-solid fa-chevron-down absolute right-3 top-3.5 text-xs text-blue-400 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <!-- Filter Status Kerja -->
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-notch text-blue-600"></i> Status Kerja
+          </label>
+          <div class="relative">
+            <select id="filterStatus" onchange="applyFilters()" class="w-full text-xs sm:text-sm bg-blue-50/50 hover:bg-white border border-blue-200/80 rounded-xl px-3 py-2.5 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none pr-8 cursor-pointer">
+              <option value="ALL">Semua Status</option>
+              <option value="Selesai">Selesai</option>
+              <option value="Dalam Tindakan">Dalam Tindakan</option>
+              <option value="Belum Mula">Belum Mula</option>
+            </select>
+            <i class="fa-solid fa-chevron-down absolute right-3 top-3.5 text-xs text-blue-400 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <!-- Filter Due Date / Timeframe -->
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1.5">
+            <i class="fa-regular fa-calendar-check text-blue-600"></i> Status Tarikh (Due Date)
+          </label>
+          <div class="relative">
+            <select id="filterDueDate" onchange="applyFilters()" class="w-full text-xs sm:text-sm bg-blue-50/50 hover:bg-white border border-blue-200/80 rounded-xl px-3 py-2.5 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none pr-8 cursor-pointer">
+              <option value="ALL">Semua Jangka Masa</option>
+              <option value="OVERDUE">Melepasi Tarikh (Overdue)</option>
+              <option value="NEAR_DUE">Hampir Due Date (&le; 7 Hari)</option>
+              <option value="NO_DUE_DATE">Tiada Tarikh Due Date</option>
+            </select>
+            <i class="fa-solid fa-chevron-down absolute right-3 top-3.5 text-xs text-blue-400 pointer-events-none"></i>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Highlights Section -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span> Status Keseluruhan Tugasan
+        </h2>
+        <span id="filteredCountBadge" class="text-xs bg-blue-100/90 text-blue-900 font-bold px-3 py-1 rounded-full border border-blue-200">
+          Menunjukkan 0 tugasan
+        </span>
+      </div>
+
+      <!-- 4 Top Highlight Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total Kerja -->
+        <div class="glass-card p-5 rounded-2xl border border-blue-200/80 card-hover-effect relative overflow-hidden group">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Jumlah Tugasan</span>
+            <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold shadow-xs">
+              <i class="fa-solid fa-briefcase"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="statTotalCount" class="text-3xl font-black text-slate-900">0</span>
+            <span class="text-xs font-semibold text-slate-500">tugasan</span>
+          </div>
+          <p class="mt-1 text-xs text-blue-600/80 font-medium">Keseluruhan rekod disaring</p>
+          <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+        </div>
+
+        <!-- Selesai -->
+        <div class="glass-card p-5 rounded-2xl border border-emerald-200/80 card-hover-effect relative overflow-hidden group">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Selesai</span>
+            <div class="w-10 h-10 rounded-xl bg-emerald-100/80 text-emerald-700 flex items-center justify-center text-sm font-bold shadow-xs">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="statSelesaiCount" class="text-3xl font-black text-emerald-700">0</span>
+            <span id="statSelesaiPct" class="text-xs font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">0%</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500"><span id="statSelesaiRatio">0 daripada 0</span> tugasan</p>
+          <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-emerald-500"></div>
+        </div>
+
+        <!-- Dalam Tindakan -->
+        <div class="glass-card p-5 rounded-2xl border border-sky-200 card-hover-effect relative overflow-hidden group">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-sky-800 uppercase tracking-wider">Dalam Tindakan</span>
+            <div class="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center text-sm font-bold shadow-xs">
+              <i class="fa-solid fa-spinner animate-spin"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="statTindakanCount" class="text-3xl font-black text-blue-700">0</span>
+            <span id="statTindakanPct" class="text-xs font-extrabold text-blue-800 bg-sky-100 px-2 py-0.5 rounded-md">0%</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500"><span id="statTindakanRatio">0 daripada 0</span> tugasan</p>
+          <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-blue-600"></div>
+        </div>
+
+        <!-- Belum Mula -->
+        <div class="glass-card p-5 rounded-2xl border border-rose-200/80 card-hover-effect relative overflow-hidden group">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-rose-700 uppercase tracking-wider">Belum Mula</span>
+            <div class="w-10 h-10 rounded-xl bg-rose-100/80 text-rose-700 flex items-center justify-center text-sm font-bold shadow-xs">
+              <i class="fa-regular fa-clock"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="statBelumCount" class="text-3xl font-black text-rose-700">0</span>
+            <span id="statBelumPct" class="text-xs font-extrabold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-md">0%</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500"><span id="statBelumRatio">0 daripada 0</span> tugasan</p>
+          <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-rose-500"></div>
+        </div>
+      </div>
+
+      <!-- Timeframe Warning Bar: Overdue, Near Due & No Due Date -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Overdue Warning -->
+        <div class="bg-gradient-to-r from-rose-50 via-red-50 to-white border border-rose-200/90 rounded-2xl p-4 flex items-center justify-between shadow-xs card-hover-effect">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-rose-600 text-white flex items-center justify-center text-lg shadow-md shadow-rose-600/30">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+              <p class="text-xs font-black uppercase tracking-wider text-rose-900">Melepasi Tarikh (Overdue)</p>
+              <p class="text-xs text-rose-700 font-medium mt-0.5">Tugasan belum siap yang melepasi tarikh akhir</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span id="statOverdueCount" class="text-2xl font-black text-rose-700">0</span>
+            <span class="text-xs font-bold text-rose-600 block">Tugasan</span>
+          </div>
+        </div>
+
+        <!-- Near Due Warning -->
+        <div class="bg-gradient-to-r from-amber-50 via-yellow-50 to-white border border-amber-200/90 rounded-2xl p-4 flex items-center justify-between shadow-xs card-hover-effect">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-lg shadow-md shadow-amber-500/30">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div>
+              <p class="text-xs font-black uppercase tracking-wider text-amber-900">Hampir Due Date</p>
+              <p class="text-xs text-amber-700 font-medium mt-0.5">Tarikh akhir dalam tempoh 7 hari akan datang</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span id="statNearDueCount" class="text-2xl font-black text-amber-800">0</span>
+            <span class="text-xs font-bold text-amber-700 block">Tugasan</span>
+          </div>
+        </div>
+
+        <!-- No Due Date Warning Card -->
+        <div class="bg-gradient-to-r from-slate-50 via-gray-50 to-white border border-slate-200/90 rounded-2xl p-4 flex items-center justify-between shadow-xs card-hover-effect">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-slate-500 text-white flex items-center justify-center text-lg shadow-md shadow-slate-500/30">
+              <i class="fa-regular fa-calendar-xmark"></i>
+            </div>
+            <div>
+              <p class="text-xs font-black uppercase tracking-wider text-slate-800">Tiada Maklumat Due Date</p>
+              <p class="text-xs text-slate-600 font-medium mt-0.5">Kerja tanpa tarikh mula atau tarikh akhir</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span id="statNoDueDateCount" class="text-2xl font-black text-slate-700">0</span>
+            <span class="text-xs font-bold text-slate-500 block">Tugasan</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Unit Performance Breakdown -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-600"></span> Prestasi & Pecahan Mengikut Unit
+        </h2>
+        <span class="text-xs text-blue-900/60 font-medium">Bilangan & Peratusan Setiap Kategori</span>
+      </div>
+      <div id="unitBreakdownContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- Charts Visualization Section -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span> Visualisasi & Analisis Carta
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Pie Chart: Status Keseluruhan -->
+        <div class="glass-card rounded-2xl p-5 border border-blue-100 shadow-sm flex flex-col card-hover-effect">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Pecahan Status Kerja</h3>
+              <p class="text-xs text-blue-800/60">Nisbah peratusan status kerja</p>
+            </div>
+            <span class="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
+              <i class="fa-solid fa-chart-pie"></i>
+            </span>
+          </div>
+          <div class="relative flex-1 min-h-[260px] flex items-center justify-center">
+            <canvas id="chartPieStatus"></canvas>
+          </div>
+        </div>
+
+        <!-- Bar Chart: Kemajuan Mengikut Unit -->
+        <div class="glass-card rounded-2xl p-5 border border-blue-100 shadow-sm flex flex-col card-hover-effect">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Taburan Tugasan Setiap Unit</h3>
+              <p class="text-xs text-blue-800/60">Selesai, Dalam Tindakan & Belum Mula</p>
+            </div>
+            <span class="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
+              <i class="fa-solid fa-chart-bar"></i>
+            </span>
+          </div>
+          <div class="relative flex-1 min-h-[260px]">
+            <canvas id="chartBarUnit"></canvas>
+          </div>
+        </div>
+
+        <!-- Line Chart: Trend & Garis Masa Due Date -->
+        <div class="glass-card rounded-2xl p-5 border border-blue-100 shadow-sm flex flex-col card-hover-effect">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Trend & Garis Masa Tarikh Tamat</h3>
+              <p class="text-xs text-blue-800/60">Tugasan terkumpul mengikut bulan tarikh luput</p>
+            </div>
+            <span class="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
+              <i class="fa-solid fa-arrow-trend-up"></i>
+            </span>
+          </div>
+          <div class="relative flex-1 min-h-[260px]">
+            <canvas id="chartLineTimeline"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Table Section -->
+    <section class="glass-card rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
+      <!-- Table Header & Toolbar -->
+      <div class="p-4 sm:p-5 border-b border-blue-100/80 bg-white/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-table-list text-blue-600"></i> Senarai Terperinci Kerja
+          </h2>
+          <p class="text-xs text-blue-900/60 mt-0.5">Senarai komprehensif unit, tempoh, peratusan siap, dan status</p>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <!-- Quick Search -->
+          <div class="relative w-full sm:w-64">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-blue-400"></i>
+            <input type="text" id="tableSearchInput" oninput="applyFilters()" placeholder="Cari nama kerja / skop..." class="w-full text-xs bg-white border border-blue-200 rounded-xl pl-8 pr-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs">
+          </div>
+          <!-- Export Button -->
+          <button onclick="exportCurrentTable()" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 whitespace-nowrap active:scale-95" title="Muat turun data jadual semasa ke Excel">
+            <i class="fa-solid fa-file-excel text-emerald-200"></i> Eksport Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- Responsive Table Container -->
+      <div class="overflow-x-auto custom-scroll max-h-[500px]">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+          <thead class="bg-blue-50/80 text-blue-950 font-bold sticky top-0 z-10 border-b border-blue-200/80 backdrop-blur-sm">
+            <tr>
+              <th class="py-3 px-4">No.</th>
+              <th class="py-3 px-4">Nama Kerja</th>
+              <th class="py-3 px-4">Unit</th>
+              <th class="py-3 px-4">Skop Kerja</th>
+              <th class="py-3 px-4">Tempoh & Due Date</th>
+              <th class="py-3 px-4 text-center">Status Timeframe</th>
+              <th class="py-3 px-4 w-40">Peratusan Siap</th>
+              <th class="py-3 px-4 text-center">Status Kerja</th>
+            </tr>
+          </thead>
+          <tbody id="taskTableBody" class="divide-y divide-blue-50 text-slate-700 bg-white/70">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty state placeholder -->
+      <div id="emptyTableState" class="hidden p-10 text-center bg-white/80">
+        <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-400 mx-auto mb-3 shadow-xs">
+          <i class="fa-regular fa-folder-open text-2xl"></i>
+        </div>
+        <p class="text-sm font-bold text-slate-800">Tiada rekod kerja ditemui</p>
+        <p class="text-xs text-blue-800/60 mt-1">Cuba tukar kriteria penapis atau muat naik fail Excel yang baru.</p>
+      </div>
+
+      <!-- Table Footer Summary -->
+      <div class="p-3.5 bg-blue-50/60 border-t border-blue-100 flex flex-wrap items-center justify-between text-xs text-blue-900/70 font-medium">
+        <span id="tableRecordSummary">Memaparkan 0 tugasan</span>
+        <span class="text-blue-800/50 text-[11px]">Status timeframe dikira berbanding tarikh hari ini</span>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Global Data Store
+    let rawTasks = [];
+    let filteredTasks = [];
+    let currentDataSource = 'demo'; // 'demo' | 'excel' | 'gsheet'
+    let gSheetConfig = {
+      sheetId: '1Nlilqmj8d90rF43MJi-GatoGrS3xHQ5svPcU_onswUQ',
+      tabName: ''
+    };
+    
+    // Chart References
+    let chartPie = null;
+    let chartBar = null;
+    let chartLine = null;
+
+    // Helper: Parser tarikh universal untuk menangani pelbagai format Google Sheets / Excel
+    function parseDateToISO(val) {
+      if (!val) return "";
+      
+      // Jika objek Date
+      if (val instanceof Date && !isNaN(val)) {
+        return val.toISOString().split('T')[0];
+      }
+
+      // Jika nombor siri tarikh Excel (cth: 45200)
+      if (typeof val === 'number' && !isNaN(val)) {
+        const utcDays = Math.floor(val - 25569);
+        const utcVal = utcDays * 86400;
+        const dateInfo = new Date(utcVal * 1000);
+        if (!isNaN(dateInfo.getTime())) {
+          return dateInfo.toISOString().split('T')[0];
+        }
+      }
+
+      let s = String(val).trim();
+      if (!s || s === "-" || s.toLowerCase() === "tiada") return "";
+
+      // Bersihkan aksara masa jika ada (cth: "2026-10-15 00:00:00" atau "15/10/2026 10:30")
+      s = s.split(' ')[0].replace(/,/g, '');
+
+      // Format ISO: YYYY-MM-DD atau YYYY/MM/DD
+      if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(s)) {
+        const parts = s.split(/[-/.]/);
+        const y = parts[0];
+        const m = String(parts[1]).padStart(2, '0');
+        const d = String(parts[2]).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      // Format lazim Malaysia/UK: DD/MM/YYYY atau DD-MM-YYYY
+      if (/^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}$/.test(s)) {
+        const parts = s.split(/[-/.]/);
+        const d = String(parts[0]).padStart(2, '0');
+        const m = String(parts[1]).padStart(2, '0');
+        const y = parts[2];
+        return `${y}-${m}-${d}`;
+      }
+
+      // Gantikan nama bulan Melayu kepada Inggeris untuk pembacaan Date standard
+      const malayMonths = {
+        'jan': 'Jan', 'januari': 'Jan',
+        'feb': 'Feb', 'februari': 'Feb',
+        'mac': 'Mar', 'mar': 'Mar',
+        'apr': 'Apr', 'april': 'Apr',
+        'mei': 'May', 'may': 'May',
+        'jun': 'Jun',
+        'jul': 'Jul', 'julai': 'Jul',
+        'ogo': 'Aug', 'ogos': 'Aug', 'aug': 'Aug',
+        'sep': 'Sep', 'september': 'Sep',
+        'okt': 'Oct', 'oktober': 'Oct', 'oct': 'Oct',
+        'nov': 'Nov', 'november': 'Nov',
+        'dis': 'Dec', 'disember': 'Dec', 'dec': 'Dec'
+      };
+
+      let normalizedStr = s;
+      Object.keys(malayMonths).forEach(mName => {
+        const reg = new RegExp(`\\b${mName}\\b`, 'gi');
+        normalizedStr = normalizedStr.replace(reg, malayMonths[mName]);
+      });
+
+      const parsed = new Date(normalizedStr);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const d = String(parsed.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      return "";
+    }
+
+    // Default Sample Data
+    const initialSampleData = [
+      { id: 1, nama: "Pembangunan Modul e-Permohonan", unit: "Unit Teknologi Maklumat", skop: "Pembangunan Sistem", mula: "2026-09-01", akhir: "2026-10-15", peratus: 100, status: "Selesai" },
+      { id: 2, nama: "Penyelenggaraan Server Pusat Data", unit: "Unit Teknologi Maklumat", skop: "Infrastruktur", mula: "2026-10-01", akhir: "2026-10-24", peratus: 65, status: "Dalam Tindakan" },
+      { id: 3, nama: "Naik Taraf Rangkaian Wi-Fi Aras 3", unit: "Unit Teknologi Maklumat", skop: "Rangkaian", mula: "2026-10-20", akhir: "2026-11-10", peratus: 0, status: "Belum Mula" },
+      { id: 4, nama: "Laporan Audit Prestasi Suku Ke-3", unit: "Unit Pengurusan & Kualiti", skop: "Audit & Dokumentasi", mula: "2026-09-15", akhir: "2026-10-10", peratus: 80, status: "Dalam Tindakan" },
+      { id: 5, nama: "Sesi Latihan Keselamatan Siber Kakitangan", unit: "Unit Latihan & Kompetensi", skop: "Latihan", mula: "2026-10-05", akhir: "2026-10-25", peratus: 45, status: "Dalam Tindakan" },
+      { id: 6, nama: "Penyediaan Bajet Tahunan 2027", unit: "Unit Kewangan & Akaun", skop: "Belanjawan", mula: "2026-10-10", akhir: "2026-11-30", peratus: 20, status: "Dalam Tindakan" },
+      { id: 7, nama: "Pelupusan Aset Komputer Usang", unit: "Unit Pengurusan & Kualiti", skop: "Pengurusan Aset", mula: "2026-09-10", akhir: "2026-09-30", peratus: 100, status: "Selesai" },
+      { id: 8, nama: "Bengkel Penyediaan SOP Baharu", unit: "Unit Latihan & Kompetensi", skop: "Dokumentasi", mula: "2026-10-26", akhir: "2026-11-05", peratus: 0, status: "Belum Mula" },
+      { id: 9, nama: "Semakan Penyata Penyesuaian Bank", unit: "Unit Kewangan & Akaun", skop: "Perakaunan", mula: "2026-10-01", akhir: "2026-10-23", peratus: 90, status: "Dalam Tindakan" },
+      { id: 10, nama: "Penggantian Perkakasan Firewall Utama", unit: "Unit Teknologi Maklumat", skop: "Keselamatan Siber", mula: "2026-08-15", akhir: "2026-09-20", peratus: 40, status: "Dalam Tindakan" },
+      { id: 11, nama: "Kajian Kepuasan Pelanggan Dalaman", unit: "Unit Pengurusan & Kualiti", skop: "Kajian Semula", mula: "2026-10-01", akhir: "2026-10-20", peratus: 100, status: "Selesai" },
+      { id: 12, nama: "Modul Induksi Staf Baharu Siri 2", unit: "Unit Latihan & Kompetensi", skop: "Latihan", mula: "2026-11-01", akhir: "2026-11-15", peratus: 0, status: "Belum Mula" },
+      { id: 13, nama: "Kajian Keperluan Pembelian Perisian AI", unit: "Unit Teknologi Maklumat", skop: "Penyelidikan", mula: "", akhir: "", peratus: 10, status: "Dalam Tindakan" },
+      { id: 14, nama: "Penyusunan Polisi Fail Terperingkat", unit: "Unit Pengurusan & Kualiti", skop: "Tadbir Urus", mula: "", akhir: "", peratus: 0, status: "Belum Mula" }
+    ];
+
+    function computeTimeframe(dueDateStr, status, peratus = 0) {
+      const isDone = (status && status.toLowerCase().includes('selesai')) || peratus >= 100;
+
+      // Semakan jika tiada tarikh sah
+      if (!dueDateStr || typeof dueDateStr !== 'string' || dueDateStr.trim() === "" || dueDateStr === "-" || dueDateStr === "/" || dueDateStr.toLowerCase() === "tiada" || dueDateStr.toLowerCase() === "null") {
+        return { 
+          status: 'Tiada Tarikh', 
+          daysDiff: null, 
+          badgeClass: 'bg-slate-100 text-slate-600 border border-slate-300', 
+          isOverdue: false, 
+          isNearDue: false, 
+          isNoDueDate: true,
+          isCompleted: isDone
+        };
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Parsing tarikh ISO (YYYY-MM-DD)
+      const parts = dueDateStr.split('-');
+      let due;
+      if (parts.length === 3) {
+        due = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      } else {
+        due = new Date(dueDateStr);
+      }
+      due.setHours(0, 0, 0, 0);
+
+      if (isNaN(due.getTime())) {
+        return { 
+          status: 'Tiada Tarikh Sah', 
+          daysDiff: null, 
+          badgeClass: 'bg-slate-100 text-slate-500 border border-slate-300', 
+          isOverdue: false, 
+          isNearDue: false, 
+          isNoDueDate: true,
+          isCompleted: isDone
+        };
+      }
+
+      const diffTime = due.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // Jika tugasan telah SELESAI, tidak dianggap overdue atau near due
+      if (isDone) {
+        return { 
+          status: diffDays < 0 ? 'Selesai (Selepas Tarikh)' : 'Selesai Tepat Masa', 
+          daysDiff: diffDays, 
+          badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200', 
+          isOverdue: false, 
+          isNearDue: false, 
+          isNoDueDate: false,
+          isCompleted: true
+        };
+      }
+
+      // Bagi tugasan yang BELUM SELESAI:
+      if (diffDays < 0) {
+        return { 
+          status: `Overdue (${Math.abs(diffDays)} hari)`, 
+          daysDiff: diffDays, 
+          badgeClass: 'badge-overdue', 
+          isOverdue: true, 
+          isNearDue: false, 
+          isNoDueDate: false,
+          isCompleted: false
+        };
+      } else if (diffDays <= 7) {
+        return { 
+          status: diffDays === 0 ? 'Hari Ini Due Date!' : `Hampir Due (${diffDays} hari lagi)`, 
+          daysDiff: diffDays, 
+          badgeClass: 'badge-neardue', 
+          isOverdue: false, 
+          isNearDue: true, 
+          isNoDueDate: false,
+          isCompleted: false
+        };
+      } else {
+        return { 
+          status: `Baki ${diffDays} hari`, 
+          daysDiff: diffDays, 
+          badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200', 
+          isOverdue: false, 
+          isNearDue: false, 
+          isNoDueDate: false,
+          isCompleted: false
+        };
+      }
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr || dateStr.trim() === "" || dateStr === "-") return '<span class="text-slate-400 italic font-normal">Tiada Tarikh</span>';
+      
+      const parts = dateStr.split('-');
+      let d;
+      if (parts.length === 3) {
+        d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      } else {
+        d = new Date(dateStr);
+      }
+
+      if (isNaN(d.getTime())) return `<span class="text-slate-400 italic font-normal">${dateStr}</span>`;
+      return d.toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function populateUnitDropdown() {
+      const unitSelect = document.getElementById('filterUnit');
+      const units = [...new Set(rawTasks.map(t => t.unit))].filter(Boolean).sort();
+
+      unitSelect.innerHTML = '<option value="ALL">Semua Unit</option>' + 
+        units.map(u => `<option value="${u}">${u}</option>`).join('');
+    }
+
+    function updateSkopDropdown() {
+      const selectedUnit = document.getElementById('filterUnit').value;
+      const skopSelect = document.getElementById('filterSkop');
+      const currentSelectedSkop = skopSelect.value;
+
+      let availableTasks = rawTasks;
+      if (selectedUnit !== "ALL") {
+        availableTasks = rawTasks.filter(t => t.unit === selectedUnit);
+      }
+
+      const skops = [...new Set(availableTasks.map(t => t.skop))].filter(Boolean).sort();
+
+      skopSelect.innerHTML = '<option value="ALL">Semua Skop Kerja</option>' + 
+        skops.map(s => `<option value="${s}">${s}</option>`).join('');
+
+      if (skops.includes(currentSelectedSkop)) {
+        skopSelect.value = currentSelectedSkop;
+      } else {
+        skopSelect.value = "ALL";
+      }
+    }
+
+    function onUnitFilterChange() {
+      updateSkopDropdown();
+      applyFilters();
+    }
+
+    function resetFilters() {
+      document.getElementById('filterUnit').value = "ALL";
+      updateSkopDropdown();
+      document.getElementById('filterSkop').value = "ALL";
+      document.getElementById('filterStatus').value = "ALL";
+      document.getElementById('filterDueDate').value = "ALL";
+      document.getElementById('tableSearchInput').value = "";
+      applyFilters();
+      showToast("Semua filter telah diset semula.", "info");
+    }
+
+    function applyFilters() {
+      const unit = document.getElementById('filterUnit').value;
+      const skop = document.getElementById('filterSkop').value;
+      const status = document.getElementById('filterStatus').value;
+      const dueFilter = document.getElementById('filterDueDate').value;
+      const search = document.getElementById('tableSearchInput').value.toLowerCase().trim();
+
+      filteredTasks = rawTasks.filter(item => {
+        if (unit !== "ALL" && item.unit !== unit) return false;
+        if (skop !== "ALL" && item.skop !== skop) return false;
+        if (status !== "ALL" && item.status !== status) return false;
+
+        const tf = computeTimeframe(item.akhir, item.status, item.peratus);
+        if (dueFilter === "OVERDUE" && !tf.isOverdue) return false;
+        if (dueFilter === "NEAR_DUE" && !tf.isNearDue) return false;
+        if (dueFilter === "NO_DUE_DATE" && !tf.isNoDueDate) return false;
+
+        if (search) {
+          const matchNama = item.nama.toLowerCase().includes(search);
+          const matchSkop = item.skop.toLowerCase().includes(search);
+          const matchUnit = item.unit.toLowerCase().includes(search);
+          if (!matchNama && !matchSkop && !matchUnit) return false;
+        }
+
+        return true;
+      });
+
+      updateOverallHighlights();
+      renderUnitCards();
+      renderCharts();
+      renderTable();
+    }
+
+    function updateOverallHighlights() {
+      const total = filteredTasks.length;
+      const selesai = filteredTasks.filter(t => t.status === "Selesai").length;
+      const tindakan = filteredTasks.filter(t => t.status === "Dalam Tindakan").length;
+      const belum = filteredTasks.filter(t => t.status === "Belum Mula").length;
+
+      const calcPct = (val) => total > 0 ? Math.round((val / total) * 100) : 0;
+
+      const setElText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = text;
+      };
+
+      setElText('statTotalCount', total);
+      setElText('filteredCountBadge', `Menunjukkan ${total} daripada ${rawTasks.length} tugasan`);
+
+      setElText('statSelesaiCount', selesai);
+      setElText('statSelesaiPct', `${calcPct(selesai)}%`);
+      setElText('statSelesaiRatio', `${selesai} daripada ${total}`);
+
+      setElText('statTindakanCount', tindakan);
+      setElText('statTindakanPct', `${calcPct(tindakan)}%`);
+      setElText('statTindakanRatio', `${tindakan} daripada ${total}`);
+
+      setElText('statBelumCount', belum);
+      setElText('statBelumPct', `${calcPct(belum)}%`);
+      setElText('statBelumRatio', `${belum} daripada ${total}`);
+
+      let overdueCount = 0;
+      let nearDueCount = 0;
+      let noDueDateCount = 0;
+
+      filteredTasks.forEach(t => {
+        const tf = computeTimeframe(t.akhir, t.status, t.peratus);
+        if (tf.isOverdue) overdueCount++;
+        else if (tf.isNearDue) nearDueCount++;
+        else if (tf.isNoDueDate) noDueDateCount++;
+      });
+
+      setElText('statOverdueCount', overdueCount);
+      setElText('statNearDueCount', nearDueCount);
+      setElText('statNoDueDateCount', noDueDateCount);
+    }
+
+    function renderUnitCards() {
+      const container = document.getElementById('unitBreakdownContainer');
+      container.innerHTML = "";
+
+      if (filteredTasks.length === 0) {
+        container.innerHTML = `<div class="col-span-full p-6 text-center glass-card rounded-2xl border border-blue-200 text-blue-800/60 text-xs">Tiada data unit bagi pilihan saringan ini.</div>`;
+        return;
+      }
+
+      const unitGroups = {};
+      filteredTasks.forEach(task => {
+        const u = task.unit || 'Lain-lain';
+        if (!unitGroups[u]) {
+          unitGroups[u] = { total: 0, selesai: 0, tindakan: 0, belum: 0, totalPctSum: 0 };
+        }
+        unitGroups[u].total += 1;
+        unitGroups[u].totalPctSum += (task.peratus || 0);
+
+        if (task.status === "Selesai") unitGroups[u].selesai += 1;
+        else if (task.status === "Dalam Tindakan") unitGroups[u].tindakan += 1;
+        else unitGroups[u].belum += 1;
+      });
+
+      Object.keys(unitGroups).sort().forEach(unitName => {
+        const uData = unitGroups[unitName];
+        const avgCompletion = Math.round(uData.totalPctSum / uData.total);
+        const selesaiPct = Math.round((uData.selesai / uData.total) * 100);
+        const tindakanPct = Math.round((uData.tindakan / uData.total) * 100);
+        const belumPct = Math.round((uData.belum / uData.total) * 100);
+
+        const card = document.createElement('div');
+        card.className = "glass-card p-5 rounded-2xl border border-blue-100 card-hover-effect relative";
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-extrabold text-slate-900 truncate" title="${unitName}">
+              <i class="fa-solid fa-layer-group text-blue-600 mr-1.5"></i> ${unitName}
+            </h3>
+            <span class="text-xs font-black px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+              ${uData.total} Kerja
+            </span>
+          </div>
+
+          <!-- Overall unit progress bar -->
+          <div class="mb-3.5">
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-500 font-medium">Purata Kemajuan:</span>
+              <span class="font-extrabold text-blue-700">${avgCompletion}%</span>
+            </div>
+            <div class="w-full bg-blue-100/60 rounded-full h-2.5 overflow-hidden flex">
+              <div class="bg-emerald-500 h-2.5" style="width: ${selesaiPct}%" title="Selesai: ${selesaiPct}%"></div>
+              <div class="bg-blue-500 h-2.5" style="width: ${tindakanPct}%" title="Dalam Tindakan: ${tindakanPct}%"></div>
+              <div class="bg-rose-400 h-2.5" style="width: ${belumPct}%" title="Belum Mula: ${belumPct}%"></div>
+            </div>
+          </div>
+
+          <!-- 3 Categories Breakdown -->
+          <div class="grid grid-cols-3 gap-2 text-center pt-2.5 border-t border-blue-50">
+            <div class="bg-emerald-50/80 p-2 rounded-xl border border-emerald-100">
+              <span class="text-[10px] uppercase font-bold text-emerald-700 block">Selesai</span>
+              <span class="text-sm font-extrabold text-emerald-800">${uData.selesai}</span>
+              <span class="text-[10px] text-emerald-600 block">(${selesaiPct}%)</span>
+            </div>
+            <div class="bg-blue-50/80 p-2 rounded-xl border border-blue-100">
+              <span class="text-[10px] uppercase font-bold text-blue-700 block">Tindakan</span>
+              <span class="text-sm font-extrabold text-blue-900">${uData.tindakan}</span>
+              <span class="text-[10px] text-blue-600 block">(${tindakanPct}%)</span>
+            </div>
+            <div class="bg-rose-50/80 p-2 rounded-xl border border-rose-100">
+              <span class="text-[10px] uppercase font-bold text-rose-700 block">Belum</span>
+              <span class="text-sm font-extrabold text-rose-800">${uData.belum}</span>
+              <span class="text-[10px] text-rose-600 block">(${belumPct}%)</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderCharts() {
+      // 1. PIE / DOUGHNUT CHART: Status Keseluruhan
+      const selesaiCount = filteredTasks.filter(t => t.status === "Selesai").length;
+      const tindakanCount = filteredTasks.filter(t => t.status === "Dalam Tindakan").length;
+      const belumCount = filteredTasks.filter(t => t.status === "Belum Mula").length;
+
+      const ctxPie = document.getElementById('chartPieStatus').getContext('2d');
+      if (chartPie) chartPie.destroy();
+
+      chartPie = new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+          labels: ['Selesai', 'Dalam Tindakan', 'Belum Mula'],
+          datasets: [{
+            data: [selesaiCount, tindakanCount, belumCount],
+            backgroundColor: ['#10b981', '#2563eb', '#f43f5e'],
+            hoverOffset: 6,
+            borderWidth: 3,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 12,
+                font: { family: "'Plus Jakarta Sans', sans-serif", size: 11, weight: '600' },
+                color: '#1e293b'
+              }
+            },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              titleFont: { family: "'Plus Jakarta Sans', sans-serif", size: 12 },
+              bodyFont: { family: "'Plus Jakarta Sans', sans-serif", size: 12 },
+              callbacks: {
+                label: function(context) {
+                  const total = selesaiCount + tindakanCount + belumCount;
+                  const val = context.raw;
+                  const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                  return ` ${context.label}: ${val} tugasan (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: '70%'
+        }
+      });
+
+      // 2. BAR CHART: Status Mengikut Unit
+      const unitMap = {};
+      filteredTasks.forEach(t => {
+        const u = t.unit || 'Lain-lain';
+        if (!unitMap[u]) unitMap[u] = { selesai: 0, tindakan: 0, belum: 0 };
+        if (t.status === "Selesai") unitMap[u].selesai++;
+        else if (t.status === "Dalam Tindakan") unitMap[u].tindakan++;
+        else unitMap[u].belum++;
+      });
+
+      const unitLabels = Object.keys(unitMap);
+      const dataSelesai = unitLabels.map(u => unitMap[u].selesai);
+      const dataTindakan = unitLabels.map(u => unitMap[u].tindakan);
+      const dataBelum = unitLabels.map(u => unitMap[u].belum);
+
+      const ctxBar = document.getElementById('chartBarUnit').getContext('2d');
+      if (chartBar) chartBar.destroy();
+
+      chartBar = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: unitLabels.map(l => l.length > 15 ? l.substring(0, 15) + '..' : l),
+          datasets: [
+            { label: 'Selesai', data: dataSelesai, backgroundColor: '#10b981', borderRadius: 5 },
+            { label: 'Dalam Tindakan', data: dataTindakan, backgroundColor: '#3b82f6', borderRadius: 5 },
+            { label: 'Belum Mula', data: dataBelum, backgroundColor: '#f43f5e', borderRadius: 5 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { 
+              stacked: true, 
+              grid: { display: false },
+              ticks: { font: { size: 10, weight: '500' }, color: '#475569' }
+            },
+            y: { 
+              stacked: true, 
+              beginAtZero: true,
+              ticks: { precision: 0, color: '#64748b' },
+              grid: { color: '#e2e8f0' }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 10, font: { size: 10, weight: '600' }, color: '#334155' }
+            }
+          }
+        }
+      });
+
+      // 3. LINE CHART: Timeline / Trend Due Date Bulan & Purata Kemajuan
+      const monthlyData = {};
+      filteredTasks.forEach(t => {
+        if (!t.akhir) return;
+        const d = new Date(t.akhir);
+        if (isNaN(d.getTime())) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!monthlyData[key]) {
+          monthlyData[key] = { count: 0, totalPct: 0 };
+        }
+        monthlyData[key].count += 1;
+        monthlyData[key].totalPct += (t.peratus || 0);
+      });
+
+      const sortedMonths = Object.keys(monthlyData).sort();
+      const monthDisplayLabels = sortedMonths.map(m => {
+        const [yr, mn] = m.split('-');
+        const dateObj = new Date(yr, mn - 1);
+        return dateObj.toLocaleDateString('ms-MY', { month: 'short', year: '2-digit' });
+      });
+
+      const monthCounts = sortedMonths.map(m => monthlyData[m].count);
+      const monthAvgPct = sortedMonths.map(m => Math.round(monthlyData[m].totalPct / monthlyData[m].count));
+
+      const ctxLine = document.getElementById('chartLineTimeline').getContext('2d');
+      if (chartLine) chartLine.destroy();
+
+      chartLine = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+          labels: monthDisplayLabels.length > 0 ? monthDisplayLabels : ['Tiada Data'],
+          datasets: [
+            {
+              label: 'Bil. Due Date',
+              data: monthCounts.length > 0 ? monthCounts : [0],
+              borderColor: '#0284c7',
+              backgroundColor: 'rgba(2, 132, 199, 0.12)',
+              fill: true,
+              tension: 0.35,
+              pointBackgroundColor: '#0284c7',
+              pointRadius: 4,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Purata % Siap',
+              data: monthAvgPct.length > 0 ? monthAvgPct : [0],
+              borderColor: '#10b981',
+              borderDash: [4, 4],
+              pointBackgroundColor: '#10b981',
+              pointRadius: 4,
+              fill: false,
+              tension: 0.35,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { 
+              type: 'linear', 
+              display: true, 
+              position: 'left', 
+              beginAtZero: true, 
+              ticks: { precision: 0, color: '#64748b' }, 
+              grid: { color: '#e2e8f0' }, 
+              title: { display: true, text: 'Bilangan Kerja', font: { size: 10, weight: 'bold' }, color: '#0369a1' } 
+            },
+            y1: { 
+              type: 'linear', 
+              display: true, 
+              position: 'right', 
+              beginAtZero: true, 
+              max: 100, 
+              grid: { drawOnChartArea: false }, 
+              title: { display: true, text: '% Purata Siap', font: { size: 10, weight: 'bold' }, color: '#059669' } 
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 10, font: { size: 10, weight: '600' }, color: '#334155' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('taskTableBody');
+      const emptyState = document.getElementById('emptyTableState');
+      const summaryText = document.getElementById('tableRecordSummary');
+
+      tbody.innerHTML = "";
+
+      if (filteredTasks.length === 0) {
+        emptyState.classList.remove('hidden');
+        summaryText.innerText = "Memaparkan 0 tugasan";
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      summaryText.innerText = `Memaparkan ${filteredTasks.length} rekod kerja`;
+
+      filteredTasks.forEach((task, index) => {
+        const tf = computeTimeframe(task.akhir, task.status, task.peratus);
+
+        let statusBadge = '';
+        if (task.status === "Selesai") {
+          statusBadge = '<span class="px-2.5 py-1 rounded-full text-xs font-bold badge-selesai inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> Selesai</span>';
+        } else if (task.status === "Dalam Tindakan") {
+          statusBadge = '<span class="px-2.5 py-1 rounded-full text-xs font-bold badge-tindakan inline-flex items-center gap-1"><i class="fa-solid fa-spinner animate-spin"></i> Tindakan</span>';
+        } else {
+          statusBadge = '<span class="px-2.5 py-1 rounded-full text-xs font-bold badge-belum inline-flex items-center gap-1"><i class="fa-solid fa-clock"></i> Belum Mula</span>';
+        }
+
+        let barColor = 'bg-blue-600';
+        if (task.peratus >= 100) barColor = 'bg-emerald-500';
+        else if (task.peratus >= 50) barColor = 'bg-blue-600';
+        else if (task.peratus > 0) barColor = 'bg-sky-500';
+        else barColor = 'bg-slate-300';
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-blue-50/60 transition-colors";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-bold text-blue-900/40">${index + 1}</td>
+          <td class="py-3 px-4">
+            <div class="font-bold text-slate-900 leading-tight">${task.nama}</div>
+            <div class="text-[11px] text-blue-900/60 sm:hidden mt-0.5">${task.unit} | ${task.skop}</div>
+          </td>
+          <td class="py-3 px-4 hidden sm:table-cell text-slate-700 font-semibold">${task.unit}</td>
+          <td class="py-3 px-4 hidden sm:table-cell">
+            <span class="bg-blue-50 text-blue-800 border border-blue-200/70 px-2.5 py-0.5 rounded-lg text-xs font-medium">${task.skop}</span>
+          </td>
+          <td class="py-3 px-4 whitespace-nowrap">
+            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+              <i class="fa-regular fa-calendar-check text-[11px] text-blue-500"></i> ${formatDate(task.akhir)}
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Mula: ${formatDate(task.mula)}</div>
+          </td>
+          <td class="py-3 px-4 text-center whitespace-nowrap">
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold ${tf.badgeClass}">
+              ${tf.isOverdue ? '<i class="fa-solid fa-circle-exclamation mr-1"></i>' : ''}
+              ${tf.isNearDue ? '<i class="fa-solid fa-stopwatch mr-1"></i>' : ''}
+              ${tf.isNoDueDate ? '<i class="fa-regular fa-circle-question mr-1"></i>' : ''}
+              ${tf.status}
+            </span>
+          </td>
+          <td class="py-3 px-4">
+            <div class="flex items-center gap-2">
+              <div class="w-full bg-blue-100/70 rounded-full h-2.5 overflow-hidden">
+                <div class="${barColor} h-2.5 rounded-full transition-all duration-500" style="width: ${task.peratus}%"></div>
+              </div>
+              <span class="text-xs font-bold text-slate-700 w-8 text-right">${task.peratus}%</span>
+            </div>
+          </td>
+          <td class="py-3 px-4 text-center whitespace-nowrap">
+            ${statusBadge}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function exportCurrentTable() {
+      if (filteredTasks.length === 0) {
+        showToast("Tiada data untuk dieksport.", "info");
+        return;
+      }
+
+      const exportData = filteredTasks.map((t, idx) => ({
+        "No": idx + 1,
+        "Nama Kerja": t.nama,
+        "Unit": t.unit,
+        "Skop Kerja": t.skop,
+        "Tarikh Mula": t.mula,
+        "Tarikh Akhir (Due Date)": t.akhir,
+        "Peratus Siap (%)": t.peratus,
+        "Status": t.status,
+        "Status Timeframe": computeTimeframe(t.akhir, t.status, t.peratus).status
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Track_Kerja");
+      XLSX.writeFile(wb, "Track_Kerja_Export.xlsx");
+      showToast("Fail Excel berjaya dimuat turun!", "success");
+    }
+
+    function extractSpreadsheetId(urlOrId) {
+      if (!urlOrId) return '';
+      const clean = urlOrId.trim();
+      const match = clean.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+      return clean;
+    }
+
+    function parseSheetDataIntoTasks(jsonData) {
+      return jsonData.map((row, idx) => {
+        const findVal = (possibleKeys) => {
+          for (const k of Object.keys(row)) {
+            const cleaned = k.trim().toLowerCase().replace(/[_\-\.]/g, ' ');
+            for (const p of possibleKeys) {
+              if (cleaned.includes(p)) return row[k];
+            }
+          }
+          return "";
+        };
+
+        const nama = findVal(["nama kerja", "tajuk kerja", "nama", "tugas", "projek", "kerja", "task"]) || `Kerja #${idx + 1}`;
+        const unit = findVal(["unit", "bahagian", "jabatan", "seksyen", "department"]) || "Unit Am";
+        const skop = findVal(["skop kerja", "skop", "kategori", "bidang", "jenis", "scope"]) || "Operasi";
+        
+        // Pengecaman tajuk lajur tarikh mula
+        let mulaRaw = findVal(["tarikh mula", "mula", "start date", "start", "tarikh laksana", "tarikh permohonan"]);
+        
+        // Pengecaman tajuk lajur tarikh akhir / due date
+        let akhirRaw = findVal(["tarikh akhir", "due date", "tarikh due", "tarikh siap", "tarikh tamat", "sasaran", "tamat", "deadline", "target date", "target", "due", "akhir"]);
+        
+        let mula = parseDateToISO(mulaRaw);
+        let akhir = parseDateToISO(akhirRaw);
+
+        let statusRaw = String(findVal(["status kerja", "status semasa", "status", "keadaan"]) || "").trim();
+        let peratusRaw = findVal(["peratusan siap", "peratus siap", "peratus", "progress", "%", "siap"]);
+        let peratus = 0;
+
+        if (peratusRaw !== "" && peratusRaw !== null && peratusRaw !== undefined) {
+          const parsedFloat = parseFloat(String(peratusRaw).replace('%', '').trim());
+          if (!isNaN(parsedFloat)) {
+            if (parsedFloat > 0 && parsedFloat <= 1) {
+              peratus = Math.round(parsedFloat * 100);
+            } else {
+              peratus = Math.min(100, Math.max(0, Math.round(parsedFloat)));
+            }
+          }
+        }
+
+        let status = "Dalam Tindakan";
+        const sLower = statusRaw.toLowerCase();
+        if (sLower.includes("selesai") || sLower.includes("complete") || sLower.includes("done") || peratus === 100) {
+          status = "Selesai";
+          peratus = 100;
+        } else if (sLower.includes("belum") || sLower.includes("not started") || (peratus === 0 && !sLower.includes("tindakan"))) {
+          status = "Belum Mula";
+          peratus = 0;
+        } else {
+          status = "Dalam Tindakan";
+          if (peratus === 0) peratus = 50;
+        }
+
+        return { id: idx + 1, nama, unit, skop, mula, akhir, peratus, status };
+      });
+    }
+
+    async function syncGoogleSheetNow() {
+      const defaultGSheetUrl = "https://docs.google.com/spreadsheets/d/1Nlilqmj8d90rF43MJi-GatoGrS3xHQ5svPcU_onswUQ/edit?usp=drive_link";
+      const inputUrl = localStorage.getItem('trackKerja_gsheet_url') || defaultGSheetUrl;
+      const inputTab = localStorage.getItem('trackKerja_gsheet_tab') || '';
+      const sheetId = extractSpreadsheetId(inputUrl);
+
+      if (!sheetId) {
+        showToast("ID Google Sheet tidak sah.", "error");
+        return;
+      }
+
+      const syncBtnIcon = document.getElementById('syncBtnIcon');
+      const syncBtnText = document.getElementById('syncBtnText');
+
+      if (syncBtnIcon) syncBtnIcon.classList.add('fa-spin');
+      if (syncBtnText) syncBtnText.innerText = "Menyegerak...";
+
+      try {
+        let exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+        if (inputTab) {
+          exportUrl += `&sheet=${encodeURIComponent(inputTab)}`;
+        }
+
+        const response = await fetch(exportUrl);
+        if (!response.ok) {
+          throw new Error(`Gagal membaca Google Sheet (Status: ${response.status}). Sila semak akses perkongsian.`);
+        }
+
+        const csvText = await response.text();
+        if (!csvText || csvText.includes('<!DOCTYPE html>')) {
+          throw new Error("Google Sheet tidak dapat diakses secara awam. Sila pastikan tetapan 'Anyone with the link can view' telah aktif.");
+        }
+
+        // Convert CSV using SheetJS with date and raw options enabled
+        const workbook = XLSX.read(csvText, { type: 'string', cellDates: true, raw: false });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+        if (!jsonData || jsonData.length === 0) {
+          showToast("Lembaran Google Sheet kosong atau tiada rekod dijumpai.", "error");
+          return;
+        }
+
+        rawTasks = parseSheetDataIntoTasks(jsonData);
+        currentDataSource = 'gsheet';
+        gSheetConfig = { sheetId, tabName: inputTab };
+
+        updateDataSourceBanner('Google Sheets');
+        populateUnitDropdown();
+        updateSkopDropdown();
+        applyFilters();
+        showToast(`Berjaya menyegerakkan ${rawTasks.length} rekod dari Google Sheet!`, "success");
+
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || "Ralat semasa menyegerakkan Google Sheet.", "error");
+      } finally {
+        if (syncBtnIcon) syncBtnIcon.classList.remove('fa-spin');
+        if (syncBtnText) syncBtnText.innerText = "Sync Google Sheet";
+      }
+    }
+
+    function updateDataSourceBanner(label) {
+      const banner = document.getElementById('dataSourceBanner');
+      const labelEl = document.getElementById('dataSourceLabel');
+      const timeEl = document.getElementById('lastSyncedTime');
+      
+      if (!banner) return;
+      banner.classList.remove('hidden');
+      if (labelEl) labelEl.innerText = label;
+      
+      const now = new Date();
+      if (timeEl) {
+        timeEl.innerText = `Kemas kini terakhir: ${now.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+      }
+    }
+
+    function showToast(message, type = "info") {
+      const toast = document.getElementById('toastNotification');
+      let colors = "bg-slate-900 text-white border-blue-400";
+      let icon = "fa-circle-info";
+
+      if (type === "success") {
+        colors = "bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400 shadow-lg shadow-emerald-600/30";
+        icon = "fa-circle-check";
+      } else if (type === "error") {
+        colors = "bg-gradient-to-r from-rose-600 to-red-600 text-white border-rose-400 shadow-lg shadow-rose-600/30";
+        icon = "fa-circle-exclamation";
+      }
+
+      toast.className = `${colors} fixed bottom-5 right-5 z-50 rounded-2xl px-4 py-3 flex items-center space-x-3 text-sm shadow-xl transition-all duration-300`;
+      toast.innerHTML = `
+        <i class="fa-solid ${icon} text-lg"></i>
+        <span>${message}</span>
+        <button onclick="document.getElementById('toastNotification').classList.add('hidden')" class="ml-2 hover:opacity-75">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      `;
+
+      toast.classList.remove('hidden');
+
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 4000);
+    }
+
+    // Auto sync dari Google Sheets sebaik sahaja halaman dimuatkan
+    window.onload = async function() {
+      // Paparkan status awal sedang menyegerak
+      updateDataSourceBanner('Menyegerakkan data dari Google Sheets...');
+
+      try {
+        await syncGoogleSheetNow();
+      } catch (err) {
+        console.warn("Gagal auto-sync Google Sheet:", err);
+      }
+    };
+  </script>
+</body>
+</html>
