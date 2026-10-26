@@ -1269,7 +1269,7 @@
       const syncBtnText = document.getElementById('syncBtnText');
 
       if (syncBtnIcon) syncBtnIcon.classList.add('fa-spin');
-      if (syncBtnText) syncBtnText.innerText = "Menyegerak...";
+      if (syncBtnText) syncBtnText.innerText = "Connecting...";
 
       try {
         let exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
@@ -1306,7 +1306,7 @@
         populateUnitDropdown();
         updateSkopDropdown();
         applyFilters();
-        showToast(`Berjaya menyegerakkan ${rawTasks.length} rekod dari Google Sheet!`, "success");
+        showToast(`Berjaya kemaskini ${rawTasks.length} rekod!`, "success");
 
       } catch (err) {
         console.error(err);
